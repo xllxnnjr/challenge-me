@@ -1,0 +1,6 @@
+{
+  "name": "Challenge Me",
+  "description": "Quick daily mini challenges to test your brain, speed, memory, and creativity with streaks, stats, and achievements.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
