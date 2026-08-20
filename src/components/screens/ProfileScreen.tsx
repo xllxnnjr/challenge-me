@@ -1,11 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { User, Volume2, VolumeX, RotateCcw, Share2, HelpCircle, Trophy, Camera, Upload, Trash2, Check, Lock, Sparkles, Filter, Sliders, Zap, Award } from 'lucide-react';
+import { User, Volume2, VolumeX, RotateCcw, Share2, HelpCircle, Trophy, Camera, Upload, Trash2, Check, Lock, Sparkles, Filter, Sliders, Zap } from 'lucide-react';
 import { GameState, Difficulty } from '../../types';
 import { AVATARS, calculateLevel } from '../../utils/storage';
 import { ACHIEVEMENTS } from '../../data/achievements';
 import { sound } from '../../utils/audio';
+import { haptics } from '../../utils/haptics';
 import { AnimatedLevelBar } from '../AnimatedLevelBar';
 import { AvatarDisplay } from '../AvatarDisplay';
+import { ShareModal, ShareData } from '../ShareModal';
 
 interface Props {
   state: GameState;
@@ -26,24 +28,24 @@ const DIFFICULTIES: { id: Difficulty; label: string; icon: string; bonus: string
     label: 'Easy Tier',
     icon: '🌱',
     bonus: '0.75x XP',
-    desc: 'Casual pace, generous timers & great for warmup',
-    color: 'from-emerald-600/30 to-teal-950/40 border-emerald-500 text-emerald-300',
+    desc: 'Casual pace & forgiving timers',
+    color: 'from-emerald-500/20 to-teal-500/10 border-emerald-400/50 text-emerald-300 ring-1 ring-emerald-400/40',
   },
   {
     id: 'Medium',
     label: 'Medium Tier',
     icon: '⚡',
     bonus: '1.0x XP',
-    desc: 'Balanced precision, standard pace & standard points',
-    color: 'from-amber-600/30 to-orange-950/40 border-amber-500 text-amber-300',
+    desc: 'Balanced precision & standard pace',
+    color: 'from-amber-500/20 to-orange-500/10 border-amber-400/50 text-amber-300 ring-1 ring-amber-400/40',
   },
   {
     id: 'Hard',
     label: 'Hard Tier',
     icon: '🔥',
     bonus: '1.5x XP',
-    desc: 'Lightning reflexes, intense timers & 1.5x score bonus',
-    color: 'from-rose-600/30 to-red-950/40 border-rose-500 text-rose-300',
+    desc: 'Lightning reflex & 1.5x score bonus',
+    color: 'from-rose-500/20 to-red-500/10 border-rose-400/50 text-rose-300 ring-1 ring-rose-400/40',
   },
 ];
 
@@ -62,6 +64,11 @@ export function ProfileScreen({
   const [selectedAvatar, setSelectedAvatar] = useState(state.avatar);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
   const [achievementFilter, setAchievementFilter] = useState<AchievementFilter>('all');
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareData, setShareData] = useState<ShareData>({
+    title: 'Challenge Me Scorecard',
+    text: '',
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const level = calculateLevel(state.xp);
@@ -85,6 +92,7 @@ export function ProfileScreen({
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
+      haptics.error();
       onToast('Please select a valid image file 🖼️');
       return;
     }
@@ -93,14 +101,12 @@ export function ProfileScreen({
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        // Resize and compress to 256x256 for clean storage
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         const size = 256;
         canvas.width = size;
         canvas.height = size;
 
-        // Calculate center crop square
         const minDim = Math.min(img.width, img.height);
         const startX = (img.width - minDim) / 2;
         const startY = (img.height - minDim) / 2;
@@ -111,6 +117,7 @@ export function ProfileScreen({
           setSelectedAvatar(dataUrl);
           onUpdatePlayer(nameInput.trim() || 'Challenger', dataUrl);
           sound.playSuccess(state.soundEnabled);
+          haptics.success();
           onToast('Profile picture uploaded successfully! 📸');
         }
       };
@@ -124,6 +131,7 @@ export function ProfileScreen({
     setSelectedAvatar(fallbackAvatar);
     onUpdatePlayer(nameInput.trim() || 'Challenger', fallbackAvatar);
     sound.playClick(state.soundEnabled);
+    haptics.light();
     onToast('Reverted to avatar icon');
   };
 
@@ -131,21 +139,39 @@ export function ProfileScreen({
     onUpdatePlayer(nameInput.trim() || 'Challenger', selectedAvatar);
     setIsEditing(false);
     sound.playClick(state.soundEnabled);
+    haptics.success();
     onToast('Profile updated successfully! ✨');
   };
 
   const handleShare = () => {
     sound.playSuccess(state.soundEnabled);
-    const shareText = `🎯 I'm at Level ${level} on Challenge Me with ${state.points} points, a ${state.streak}-day streak, and ${unlockedAchievementsCount} trophies! Can you beat my score?`;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(shareText).then(() => {
-        onToast('Scorecard copied to clipboard! 📋');
-      }).catch(() => {
-        onToast('Ready to share!');
-      });
-    } else {
-      onToast('Scorecard ready to share!');
-    }
+    haptics.celebration();
+    const shareText = `🎯 ${state.playerName}'s Scorecard on Challenge Me:\n• Level: ${level} Challenger (${state.xp} XP)\n• Total Points: ${state.points} pts\n• Daily Streak: ${state.streak} days 🔥\n• Completed: ${state.done} challenges\n• Trophies: ${unlockedAchievementsCount}/${totalAchievements} unlocked 🏆\n• Active Difficulty: ${currentDifficulty}\n\nCan you beat my brain training score?`;
+
+    setShareData({
+      title: `${state.playerName}'s Challenge Me Scorecard`,
+      text: shareText,
+      level,
+      score: state.points,
+      streak: state.streak,
+      trophiesCount: unlockedAchievementsCount,
+    });
+    setShareModalOpen(true);
+  };
+
+  const handleShareAchievement = (ach: typeof ACHIEVEMENTS[0]) => {
+    sound.playSuccess(state.soundEnabled);
+    haptics.celebration();
+    const shareText = `🏆 Milestone Unlocked on Challenge Me!\n"${ach.title}" ${ach.icon}\n${ach.desc}\n\n• Player: ${state.playerName} (Level ${level})\n• Reward: +${ach.xpReward} XP\n• Total Trophies: ${unlockedAchievementsCount}/${totalAchievements}\n\nPlay & train your brain!`;
+
+    setShareData({
+      title: `Unlocked Achievement: ${ach.title}`,
+      text: shareText,
+      level,
+      score: state.points,
+      streak: state.streak,
+    });
+    setShareModalOpen(true);
   };
 
   return (
@@ -166,41 +192,47 @@ export function ProfileScreen({
             <span>Profile & Settings</span>
           </h2>
           <span className="text-xs text-[#94a3b8]">
-            Customize profile photo, difficulty tier & trophies
+            Customize profile, difficulty tier & trophies
           </span>
         </div>
-        <div className="p-2.5 bg-[#121a2c] rounded-2xl border border-[#263149] text-amber-400 shadow-md">
+        <div className="p-2.5 bg-white/[0.06] rounded-[20px] border border-white/10 text-amber-400 shadow-md">
           <User className="w-5 h-5" />
         </div>
       </div>
 
-      {/* Profile Navigation Tabs (Profile vs Achievements) */}
-      <div className="grid grid-cols-2 p-1.5 bg-[#0b1222] border border-[#23324f] rounded-2xl shadow-inner">
+      {/* Apple-style Segmented Capsule Tabs (Profile vs Achievements) */}
+      <div className="grid grid-cols-2 p-1 bg-black/40 border border-white/10 rounded-full shadow-inner backdrop-blur-xl">
         <button
           type="button"
-          onClick={() => setActiveTab('profile')}
-          className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+          onClick={() => {
+            haptics.selection();
+            setActiveTab('profile');
+          }}
+          className={`flex items-center justify-center gap-2 py-2 px-3 rounded-full text-xs font-black transition-all cursor-pointer ${
             activeTab === 'profile'
-              ? 'bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-purple-600/20 text-white border border-amber-400/50 shadow-md scale-[1.01]'
+              ? 'bg-white/15 text-white border border-white/20 shadow-md scale-[1.01]'
               : 'text-[#828fa6] hover:text-white'
           }`}
         >
-          <User className="w-4 h-4 text-amber-400" />
+          <User className="w-3.5 h-3.5 text-amber-400" />
           <span>My Profile</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('achievements')}
-          className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+          onClick={() => {
+            haptics.selection();
+            setActiveTab('achievements');
+          }}
+          className={`flex items-center justify-center gap-2 py-2 px-3 rounded-full text-xs font-black transition-all cursor-pointer ${
             activeTab === 'achievements'
-              ? 'bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-purple-600/20 text-white border border-amber-400/50 shadow-md scale-[1.01]'
+              ? 'bg-white/15 text-white border border-white/20 shadow-md scale-[1.01]'
               : 'text-[#828fa6] hover:text-white'
           }`}
         >
-          <Trophy className="w-4 h-4 text-amber-400" />
+          <Trophy className="w-3.5 h-3.5 text-amber-400" />
           <span>Achievements</span>
-          <span className="text-[10px] font-black bg-[#1a253d] border border-[#2f3f63] text-amber-300 px-1.5 py-0.2 rounded-full">
+          <span className="text-[10px] font-black bg-white/10 text-amber-300 px-2 py-0.5 rounded-full">
             {unlockedAchievementsCount}/{totalAchievements}
           </span>
         </button>
@@ -209,12 +241,9 @@ export function ProfileScreen({
       {/* TAB 1: PROFILE INFO, DIFFICULTY SETTINGS & PICTURE UPLOAD */}
       {activeTab === 'profile' && (
         <div className="space-y-4 animate-in fade-in duration-200">
-          {/* Profile Card with Photo Upload and Dynamic Level Scaling */}
-          <div className="rounded-3xl bg-gradient-to-br from-[#121c30] via-[#0e1627] to-[#090f1d] border border-[#263552] p-5 shadow-2xl space-y-4 relative overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
-
+          {/* Apple ID Style Profile Card */}
+          <div className="rounded-[28px] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-white/[0.02] backdrop-blur-2xl border border-white/10 p-5 shadow-[0_12px_36px_rgba(0,0,0,0.4)] space-y-4 relative overflow-hidden">
             <div className="flex items-center gap-4">
-              {/* Profile Avatar / Photo Container with quick upload badge */}
               <div className="relative group">
                 <AvatarDisplay
                   avatar={selectedAvatar}
@@ -222,12 +251,14 @@ export function ProfileScreen({
                   className="ring-2 ring-amber-400/60 shadow-xl shadow-black/80"
                 />
 
-                {/* Upload Action Overlay Button */}
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    haptics.light();
+                    fileInputRef.current?.click();
+                  }}
                   title="Upload profile picture"
-                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#18233c] hover:bg-amber-500 text-slate-200 hover:text-black border border-[#3b4b6f] flex items-center justify-center transition shadow-md cursor-pointer active:scale-90"
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[#18233c] hover:bg-amber-500 text-slate-200 hover:text-black border border-white/20 flex items-center justify-center transition shadow-md cursor-pointer active:scale-90"
                 >
                   <Camera className="w-3.5 h-3.5" />
                 </button>
@@ -241,7 +272,7 @@ export function ProfileScreen({
                       value={nameInput}
                       onChange={(e) => setNameInput(e.target.value)}
                       maxLength={20}
-                      className="w-full bg-[#090f1f] border border-[#37496d] rounded-xl px-3 py-1.5 text-sm text-white font-bold outline-none focus:border-amber-400 shadow-inner"
+                      className="w-full bg-black/40 border border-white/20 rounded-xl px-3 py-1.5 text-sm text-white font-bold outline-none focus:border-amber-400 shadow-inner"
                       placeholder="Enter challenger name"
                     />
                   </div>
@@ -263,17 +294,18 @@ export function ProfileScreen({
 
               <button
                 onClick={() => {
+                  haptics.light();
                   if (isEditing) handleSaveProfile();
                   else setIsEditing(true);
                 }}
-                className="px-3.5 py-1.5 rounded-xl bg-[#1a253f] hover:bg-[#233152] text-xs font-bold text-slate-200 border border-[#304269] transition cursor-pointer active:scale-95 shadow-sm"
+                className="px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-200 border border-white/15 transition cursor-pointer active:scale-95 shadow-sm"
               >
-                {isEditing ? 'Save' : 'Edit'}
+                {isEditing ? 'Done' : 'Edit'}
               </button>
             </div>
 
             {/* Level Progress Bar with Framer Motion */}
-            <div className="pt-2 border-t border-[#263149]/60">
+            <div className="pt-2 border-t border-white/5">
               <AnimatedLevelBar
                 xp={state.xp}
                 level={level}
@@ -283,13 +315,16 @@ export function ProfileScreen({
 
             {/* Profile Picture Management & Avatar Selection */}
             {isEditing && (
-              <div className="pt-3 border-t border-[#263149]/60 space-y-3">
+              <div className="pt-3 border-t border-white/5 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-[#9ca7bd] font-bold">Profile Picture Options:</span>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 bg-[#162035] px-2.5 py-1 rounded-lg border border-[#2d3f63] transition cursor-pointer"
+                    onClick={() => {
+                      haptics.light();
+                      fileInputRef.current?.click();
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 bg-white/10 px-3 py-1 rounded-full border border-white/10 transition cursor-pointer"
                   >
                     <Upload className="w-3 h-3" />
                     <span>Upload Photo</span>
@@ -297,7 +332,7 @@ export function ProfileScreen({
                 </div>
 
                 {isCustomPicture && (
-                  <div className="flex items-center justify-between p-2 rounded-xl bg-[#151e33] border border-[#273654] text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded-[18px] bg-white/[0.04] border border-white/10 text-xs">
                     <span className="text-slate-300 text-[11px]">Custom photo active</span>
                     <button
                       type="button"
@@ -318,13 +353,14 @@ export function ProfileScreen({
                         key={av}
                         type="button"
                         onClick={() => {
+                          haptics.selection();
                           setSelectedAvatar(av);
                           onUpdatePlayer(nameInput.trim() || 'Challenger', av);
                         }}
-                        className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition border cursor-pointer ${
+                        className={`w-10 h-10 rounded-[14px] text-xl flex items-center justify-center transition border cursor-pointer ${
                           selectedAvatar === av
-                            ? 'bg-purple-950 border-amber-400 scale-110 shadow-md'
-                            : 'bg-[#151d31] border-[#263149] hover:bg-[#1f2b48]'
+                            ? 'bg-purple-950/80 border-amber-400 scale-110 shadow-md'
+                            : 'bg-white/[0.04] border-white/10 hover:bg-white/10'
                         }`}
                       >
                         {av}
@@ -336,11 +372,11 @@ export function ProfileScreen({
             )}
           </div>
 
-          {/* Dedicated Sleek Difficulty Settings Tier (Moved to Profile as requested) */}
-          <div className="rounded-3xl bg-gradient-to-br from-[#121c30] to-[#0c1322] border border-[#263552] p-4 sm:p-5 shadow-xl space-y-3.5">
+          {/* Dedicated Apple-style Difficulty Settings Section */}
+          <div className="rounded-[28px] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-white/[0.02] backdrop-blur-2xl border border-white/10 p-5 shadow-[0_10px_32px_rgba(0,0,0,0.4)] space-y-3.5">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center justify-center text-sm font-bold">
+                <div className="w-7 h-7 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center text-sm font-bold">
                   🎯
                 </div>
                 <div>
@@ -364,19 +400,20 @@ export function ProfileScreen({
                     id={`profile-difficulty-${diff.id.toLowerCase()}`}
                     type="button"
                     onClick={() => {
+                      haptics.medium();
                       onChangeDifficulty(diff.id);
                       sound.playClick(state.soundEnabled);
                       onToast(`Difficulty set to ${diff.label} ${diff.icon}`);
                     }}
-                    className={`p-3 rounded-2xl text-left transition-all border cursor-pointer flex flex-col justify-between gap-1.5 ${
+                    className={`p-3.5 rounded-[22px] text-left transition-all border cursor-pointer flex flex-col justify-between gap-2 active:scale-95 ${
                       isSelected
-                        ? `bg-gradient-to-b ${diff.color} shadow-xl ring-1 ring-amber-400/60 scale-[1.02]`
-                        : 'bg-[#0f172a]/90 border-[#22314e] text-slate-400 hover:text-slate-200 hover:bg-[#152038]'
+                        ? `bg-gradient-to-b ${diff.color} shadow-lg scale-[1.02]`
+                        : 'bg-white/[0.03] border-white/5 text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'
                     }`}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <span className="text-lg">{diff.icon}</span>
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-black/40 border border-white/10">
+                      <span className="text-xl">{diff.icon}</span>
+                      <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-black/40 border border-white/10">
                         {diff.bonus}
                       </span>
                     </div>
@@ -397,14 +434,14 @@ export function ProfileScreen({
           {/* Share Scorecard CTA */}
           <button
             onClick={handleShare}
-            className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-[#141e33] to-[#182540] hover:from-[#1b2845] hover:to-[#203052] border border-amber-500/40 text-amber-200 font-bold text-xs flex items-center justify-center gap-2 transition active:scale-98 shadow-md cursor-pointer"
+            className="w-full py-3.5 px-4 rounded-[22px] bg-white/[0.08] hover:bg-white/[0.12] border border-white/15 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition active:scale-95 shadow-md cursor-pointer"
           >
             <Share2 className="w-4 h-4 text-amber-400" />
             <span>Share Scorecard & Achievements</span>
           </button>
 
-          {/* Level Progression & Difficulty Scaling Explainer */}
-          <div className="rounded-2xl bg-[#0e1627] border border-[#263149] p-4 space-y-2 text-xs">
+          {/* Dynamic Scaling Explainer */}
+          <div className="rounded-[24px] bg-white/[0.03] border border-white/10 p-4 space-y-2 text-xs">
             <div className="flex items-center gap-2 text-amber-400 font-bold">
               <Sparkles className="w-4 h-4" />
               <span>DYNAMIC LEVEL DIFFICULTY SCALING</span>
@@ -414,53 +451,13 @@ export function ProfileScreen({
             </p>
           </div>
 
-          {/* How it works section */}
+          {/* Apple Settings Group: Audio & FX */}
           <div className="space-y-2.5">
-            <div className="flex items-center gap-1.5 px-1 text-xs text-[#9ca7bd] font-bold">
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>HOW IT WORKS</span>
-            </div>
+            <span className="text-xs text-[#9ca7bd] font-bold block px-1">AUDIO & SYSTEM</span>
 
-            <div className="rounded-2xl bg-[#0e1627] border border-[#263149] divide-y divide-[#263149]/60 overflow-hidden text-xs">
-              <div className="p-3.5 flex items-start gap-3">
-                <span className="text-2xl">🎲</span>
-                <div>
-                  <strong className="block text-white text-sm">1. Pick or Roll a Challenge</strong>
-                  <span className="text-[#9ca7bd] leading-relaxed">
-                    Choose from Math, Social, Memory, and Speed mini-games designed for 15-30 second gameplay.
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3.5 flex items-start gap-3">
-                <span className="text-2xl">⭐</span>
-                <div>
-                  <strong className="block text-white text-sm">2. Earn Points & Level Up</strong>
-                  <span className="text-[#9ca7bd] leading-relaxed">
-                    Complete challenges accurately to earn score points, unlock achievements, and level up your player badge.
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3.5 flex items-start gap-3">
-                <span className="text-2xl">🔥</span>
-                <div>
-                  <strong className="block text-white text-sm">3. Build Daily Momentum</strong>
-                  <span className="text-[#9ca7bd] leading-relaxed">
-                    Come back daily to keep your active streak burning and unlock high-tier trophies.
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Game Preferences */}
-          <div className="space-y-2.5">
-            <span className="text-xs text-[#9ca7bd] font-bold block px-1">AUDIO & FX</span>
-
-            <div className="rounded-2xl bg-[#0e1627] border border-[#263149] p-3.5 flex items-center justify-between">
+            <div className="rounded-[24px] bg-white/[0.04] border border-white/10 p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-[#18233c] text-purple-300">
+                <div className="p-2 rounded-xl bg-white/10 text-purple-300">
                   {state.soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                 </div>
                 <div>
@@ -470,9 +467,12 @@ export function ProfileScreen({
               </div>
 
               <button
-                onClick={onToggleSound}
+                onClick={() => {
+                  haptics.selection();
+                  onToggleSound();
+                }}
                 className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer ${
-                  state.soundEnabled ? 'bg-purple-600' : 'bg-slate-700'
+                  state.soundEnabled ? 'bg-emerald-500' : 'bg-slate-700'
                 }`}
               >
                 <div
@@ -484,26 +484,30 @@ export function ProfileScreen({
             </div>
           </div>
 
-          {/* Danger Zone: Reset Progress */}
+          {/* Reset Progress */}
           <div className="pt-2">
             {showConfirmReset ? (
-              <div className="p-4 rounded-2xl bg-rose-950/40 border border-rose-800 text-center space-y-3">
+              <div className="p-4 rounded-[24px] bg-rose-950/40 border border-rose-800 text-center space-y-3">
                 <p className="text-xs text-rose-200 font-bold">
                   Are you sure you want to reset all points, streak, and level progress? This cannot be undone.
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
+                      haptics.error();
                       onResetGame();
                       setShowConfirmReset(false);
                     }}
-                    className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold text-xs text-white cursor-pointer"
+                    className="flex-1 py-2 rounded-full bg-rose-600 hover:bg-rose-500 font-bold text-xs text-white cursor-pointer"
                   >
                     Yes, Reset All
                   </button>
                   <button
-                    onClick={() => setShowConfirmReset(false)}
-                    className="flex-1 py-2 rounded-xl bg-[#18233c] text-slate-300 font-bold text-xs cursor-pointer"
+                    onClick={() => {
+                      haptics.light();
+                      setShowConfirmReset(false);
+                    }}
+                    className="flex-1 py-2 rounded-full bg-white/10 text-slate-300 font-bold text-xs cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -511,8 +515,11 @@ export function ProfileScreen({
               </div>
             ) : (
               <button
-                onClick={() => setShowConfirmReset(true)}
-                className="w-full py-3 px-4 rounded-xl bg-[#111827] hover:bg-rose-950/30 border border-rose-900/40 text-rose-400 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                onClick={() => {
+                  haptics.medium();
+                  setShowConfirmReset(true);
+                }}
+                className="w-full py-3 px-4 rounded-[22px] bg-white/[0.02] hover:bg-rose-950/20 border border-rose-900/30 text-rose-400 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Reset My Progress</span>
@@ -522,14 +529,14 @@ export function ProfileScreen({
         </div>
       )}
 
-      {/* TAB 2: ACHIEVEMENTS & TROPHIES TAB */}
+      {/* TAB 2: ACHIEVEMENTS & TROPHIES TAB (Game Center Style) */}
       {activeTab === 'achievements' && (
         <div className="space-y-4 animate-in fade-in duration-200">
           {/* Achievements Summary Banner */}
-          <div className="rounded-3xl bg-gradient-to-br from-[#1b253d] to-[#11192b] border border-[#2d3e64] p-5 shadow-xl space-y-3">
+          <div className="rounded-[28px] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-white/[0.02] backdrop-blur-2xl border border-white/10 p-5 shadow-[0_12px_36px_rgba(0,0,0,0.4)] space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-300 text-black flex items-center justify-center text-2xl font-black shadow-lg shadow-amber-500/20">
+                <div className="w-12 h-12 rounded-[18px] bg-gradient-to-tr from-amber-500 to-yellow-300 text-black flex items-center justify-center text-2xl font-black shadow-lg shadow-amber-500/20">
                   🏆
                 </div>
                 <div>
@@ -543,14 +550,14 @@ export function ProfileScreen({
               </div>
 
               <div className="text-right">
-                <span className="text-xs font-extrabold text-amber-400 bg-amber-950/60 border border-amber-800 px-2.5 py-1 rounded-xl shadow-inner">
-                  +{totalAchievementBonusXp} XP Earned
+                <span className="text-xs font-black text-amber-300 bg-white/10 border border-white/15 px-3 py-1 rounded-full shadow-inner">
+                  +{totalAchievementBonusXp} XP
                 </span>
               </div>
             </div>
 
             {/* Achievement Progress Bar */}
-            <div className="w-full bg-[#0d1424] rounded-full h-2 overflow-hidden border border-[#22304d]">
+            <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden border border-white/10">
               <div
                 className="bg-gradient-to-r from-amber-400 via-pink-500 to-purple-500 h-full rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${(unlockedAchievementsCount / totalAchievements) * 100}%` }}
@@ -558,22 +565,25 @@ export function ProfileScreen({
             </div>
           </div>
 
-          {/* Filter Pills: All | Unlocked | Locked */}
+          {/* Filter Pills */}
           <div className="flex items-center justify-between gap-2 px-1">
             <div className="flex items-center gap-1.5">
               <Filter className="w-3.5 h-3.5 text-[#828fa6]" />
               <span className="text-xs text-[#828fa6] font-bold">Filter:</span>
             </div>
 
-            <div className="flex items-center gap-1 bg-[#0c1322] border border-[#263149] p-1 rounded-xl">
+            <div className="flex items-center gap-1 bg-black/40 border border-white/10 p-1 rounded-full">
               {(['all', 'unlocked', 'locked'] as AchievementFilter[]).map((f) => (
                 <button
                   key={f}
                   type="button"
-                  onClick={() => setAchievementFilter(f)}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold capitalize transition-all cursor-pointer ${
+                  onClick={() => {
+                    haptics.selection();
+                    setAchievementFilter(f);
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-bold capitalize transition-all cursor-pointer ${
                     achievementFilter === f
-                      ? 'bg-amber-500 text-black shadow-sm font-black'
+                      ? 'bg-amber-400 text-black shadow-sm font-black'
                       : 'text-[#828fa6] hover:text-white'
                   }`}
                 >
@@ -590,17 +600,17 @@ export function ProfileScreen({
               return (
                 <div
                   key={ach.id}
-                  className={`rounded-2xl border p-4 flex items-center gap-3.5 transition-all shadow-md ${
+                  className={`rounded-[24px] border p-4 flex items-center gap-3.5 transition-all shadow-md ${
                     isUnlocked
-                      ? 'bg-gradient-to-br from-[#121c2e] to-[#0e1726] border-purple-500/40 text-white shadow-purple-950/20'
-                      : 'bg-[#0d1423]/60 border-[#1e2a42] opacity-60 text-slate-400'
+                      ? 'bg-gradient-to-br from-white/[0.08] to-white/[0.02] border-white/20 text-white'
+                      : 'bg-white/[0.02] border-white/5 opacity-60 text-slate-400'
                   }`}
                 >
                   <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-2xl border flex-shrink-0 ${
+                    className={`w-12 h-12 rounded-[18px] flex items-center justify-center text-2xl border flex-shrink-0 ${
                       isUnlocked
-                        ? 'bg-[#1e2942] border-purple-400/50 shadow-inner'
-                        : 'bg-[#111827] border-slate-700 text-slate-600'
+                        ? 'bg-white/10 border-white/20 shadow-inner'
+                        : 'bg-black/40 border-white/5 text-slate-600'
                     }`}
                   >
                     {isUnlocked ? ach.icon : '🔒'}
@@ -611,18 +621,34 @@ export function ProfileScreen({
                       <strong className="text-xs font-black text-white truncate">
                         {ach.title}
                       </strong>
-                      {isUnlocked ? (
-                        <span className="text-[10px] text-emerald-400 font-black bg-emerald-950/70 px-2 py-0.5 rounded-full border border-emerald-800 flex items-center gap-1">
-                          <Check className="w-2.5 h-2.5" />
-                          <span>UNLOCKED</span>
-                        </span>
-                      ) : (
-                        <span className="text-[10px] text-amber-400/90 font-black bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-900/50">
-                          +{ach.xpReward} XP
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {isUnlocked ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleShareAchievement(ach);
+                              }}
+                              title="Share this achievement to apps"
+                              className="p-1 px-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-[10px] text-amber-300 font-black flex items-center gap-1 transition active:scale-95 cursor-pointer"
+                            >
+                              <Share2 className="w-2.5 h-2.5" />
+                              <span>Share</span>
+                            </button>
+                            <span className="text-[10px] text-emerald-400 font-black bg-emerald-400/10 px-2.5 py-0.5 rounded-full border border-emerald-400/20 flex items-center gap-1">
+                              <Check className="w-2.5 h-2.5" />
+                              <span>UNLOCKED</span>
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-amber-300 font-black bg-white/10 px-2.5 py-0.5 rounded-full border border-white/15">
+                            +{ach.xpReward} XP
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-[11px] text-[#9ca7bd] leading-tight">
+                    <p className="text-[11px] text-[#9ca7bd] leading-tight font-normal">
                       {ach.desc}
                     </p>
                   </div>
@@ -632,6 +658,15 @@ export function ProfileScreen({
           </div>
         </div>
       )}
+
+      {/* Reusable Apple-Style Multi-Application Share Sheet */}
+      <ShareModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        data={shareData}
+        onToast={onToast}
+        soundEnabled={state.soundEnabled}
+      />
     </div>
   );
 }

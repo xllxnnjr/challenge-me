@@ -331,7 +331,7 @@ export default function App() {
           )}
 
           {currentTab === 'stats' && (
-            <StatsScreen state={state} />
+            <StatsScreen state={state} onToast={showToast} />
           )}
 
           {currentTab === 'profile' && (

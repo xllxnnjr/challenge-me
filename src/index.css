@@ -3,11 +3,11 @@
 @layer base {
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Plus Jakarta Sans', system-ui, sans-serif;
-    background: #060913;
+    background: #050811;
     background-image: 
-      radial-gradient(circle at 50% 0%, rgba(30, 48, 92, 0.45) 0%, transparent 60%),
-      radial-gradient(circle at 100% 40%, rgba(138, 43, 226, 0.12) 0%, transparent 50%),
-      radial-gradient(circle at 0% 70%, rgba(255, 159, 10, 0.08) 0%, transparent 50%);
+      radial-gradient(circle at 50% 0%, rgba(37, 56, 110, 0.4) 0%, transparent 60%),
+      radial-gradient(circle at 90% 30%, rgba(142, 45, 226, 0.12) 0%, transparent 45%),
+      radial-gradient(circle at 10% 65%, rgba(255, 159, 10, 0.08) 0%, transparent 45%);
     background-attachment: fixed;
     color: #f5f7fa;
     -webkit-font-smoothing: antialiased;
@@ -16,7 +16,7 @@
 
   h1, h2, h3, h4, .font-display {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Outfit', 'Plus Jakarta Sans', sans-serif;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -36,10 +36,30 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
-/* Smooth glass shine */
-.glass-panel {
-  background: rgba(18, 26, 44, 0.65);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+/* Apple glass materials */
+.apple-glass {
+  background: rgba(18, 25, 42, 0.68);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.apple-card {
+  background: linear-gradient(135deg, rgba(25, 36, 62, 0.65) 0%, rgba(12, 18, 32, 0.85) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.apple-card-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.apple-card-hover:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+.apple-card-hover:active {
+  transform: scale(0.985);
 }

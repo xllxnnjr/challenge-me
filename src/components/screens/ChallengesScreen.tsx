@@ -1,8 +1,10 @@
-import { useState } from 'react';
-import { Search, Dices, Layers, Sparkles, SlidersHorizontal } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Dices, Sparkles, X, ChevronRight } from 'lucide-react';
 import { Challenge, Difficulty } from '../../types';
 import { CHALLENGES, CATEGORIES_CONFIG } from '../../data/challenges';
 import { ChallengeCard } from '../ChallengeCard';
+import { ChallengeIcon } from '../ChallengeIcon';
+import { haptics } from '../../utils/haptics';
 
 interface Props {
   onSelectChallenge: (challenge: Challenge, difficulty: Difficulty) => void;
@@ -16,7 +18,6 @@ export function ChallengesScreen({
   onRandomChallenge,
   currentDifficulty,
 }: Props) {
-  // Default to first category since "All" tab is removed as requested
   const [selectedCategory, setSelectedCategory] = useState<string>('Math & Logic');
   const [selectedSubCat, setSelectedSubCat] = useState<string>('All');
   const [search, setSearch] = useState('');
@@ -44,14 +45,20 @@ export function ChallengesScreen({
   });
 
   const handleSelectCategory = (catId: string) => {
+    haptics.selection();
     setSelectedCategory(catId);
     setSelectedSubCat('All');
   };
 
+  const handleSelectSubCategory = (sub: string) => {
+    haptics.selection();
+    setSelectedSubCat(sub.startsWith('All ') ? 'All' : sub);
+  };
+
   const getDiffBadge = (diff: Difficulty) => {
-    if (diff === 'Easy') return { icon: '🌱', label: 'Easy (0.75x)', color: 'text-emerald-300 bg-emerald-950/60 border-emerald-700/50' };
-    if (diff === 'Hard') return { icon: '🔥', label: 'Hard (1.5x)', color: 'text-rose-300 bg-rose-950/60 border-rose-700/50' };
-    return { icon: '⚡', label: 'Medium (1.0x)', color: 'text-amber-300 bg-amber-950/60 border-amber-700/50' };
+    if (diff === 'Easy') return { icon: '🌱', label: 'Easy (0.75x)', color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' };
+    if (diff === 'Hard') return { icon: '🔥', label: 'Hard (1.5x)', color: 'text-rose-400 bg-rose-400/10 border-rose-400/20' };
+    return { icon: '⚡', label: 'Medium (1.0x)', color: 'text-amber-400 bg-amber-400/10 border-amber-400/20' };
   };
 
   const diffBadge = getDiffBadge(currentDifficulty);
@@ -63,11 +70,10 @@ export function ChallengesScreen({
         <div>
           <h2 className="text-2xl sm:text-3xl font-display font-black tracking-tight text-white flex items-center gap-2">
             <span>Challenge Vault</span>
-            <span className="text-amber-400 text-lg animate-bounce">⚡</span>
           </h2>
           <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-xs text-[#94a3b8]">Select category & sub-skills</span>
-            <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border ${diffBadge.color}`}>
+            <span className="text-xs text-[#94a3b8]">Apple Arcade collection</span>
+            <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2.5 py-0.5 rounded-full border ${diffBadge.color}`}>
               <span>{diffBadge.icon}</span>
               <span>{diffBadge.label}</span>
             </span>
@@ -76,83 +82,78 @@ export function ChallengesScreen({
 
         <button
           id="challenges-random-btn"
-          onClick={() => onRandomChallenge(currentDifficulty)}
+          onClick={() => {
+            haptics.heavy();
+            onRandomChallenge(currentDifficulty);
+          }}
           title="Roll a random challenge"
-          className="p-2.5 sm:px-3.5 sm:py-2.5 rounded-2xl bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-purple-600/20 hover:from-amber-500/30 hover:to-purple-600/30 border border-amber-500/40 text-amber-300 text-xs font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-amber-950/30 cursor-pointer group"
+          className="p-2.5 sm:px-3.5 sm:py-2.5 rounded-[20px] bg-white/[0.08] hover:bg-white/[0.12] border border-white/15 text-amber-300 text-xs font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-md cursor-pointer group"
         >
           <Dices className="w-4 h-4 text-amber-400 group-hover:rotate-45 transition-transform" />
           <span className="hidden sm:inline">Surprise Me</span>
         </button>
       </div>
 
-      {/* Sleek Category Tabs (Direct categories, no "All" side tab) */}
-      <div className="space-y-2">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {CATEGORIES_CONFIG.map((cat) => {
-            const isSelected = selectedCategory === cat.id;
-            const count = CHALLENGES.filter((c) => c.cat === cat.id).length;
+      {/* Apple Arcade Category Grid (Direct 4 Categories with Squircle Badges) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {CATEGORIES_CONFIG.map((cat) => {
+          const isSelected = selectedCategory === cat.id;
+          const count = CHALLENGES.filter((c) => c.cat === cat.id).length;
 
-            return (
-              <button
-                key={cat.id}
-                id={`cat-tab-${cat.id.toLowerCase().replace(/\s+/g, '-')}`}
-                type="button"
-                onClick={() => handleSelectCategory(cat.id)}
-                className={`relative overflow-hidden p-3 rounded-2xl font-display font-black text-xs transition-all duration-200 border cursor-pointer flex flex-col items-start gap-1 text-left ${
-                  isSelected
-                    ? 'bg-gradient-to-br from-[#1d263d] to-[#12192b] border-amber-400/80 text-white shadow-xl shadow-amber-950/30 scale-[1.02] ring-1 ring-amber-400/50'
-                    : 'bg-[#0f1627]/90 border-[#23304c] text-[#8e9ab2] hover:text-white hover:bg-[#162139] hover:border-[#354870]'
-                }`}
-              >
-                {/* Active Indicator Glow */}
-                {isSelected && (
-                  <div className="absolute top-0 right-0 w-12 h-12 bg-amber-400/10 rounded-bl-full pointer-events-none blur-sm" />
-                )}
+          return (
+            <button
+              key={cat.id}
+              id={`cat-tab-${cat.id.toLowerCase().replace(/\s+/g, '-')}`}
+              type="button"
+              onClick={() => handleSelectCategory(cat.id)}
+              className={`relative overflow-hidden p-3 rounded-[24px] font-display font-black text-xs transition-all duration-200 border cursor-pointer flex flex-col items-start gap-2 text-left active:scale-95 ${
+                isSelected
+                  ? 'bg-gradient-to-br from-white/[0.16] to-white/[0.06] border-white/30 text-white shadow-[0_10px_30px_rgba(0,0,0,0.45)] ring-1 ring-white/30'
+                  : 'bg-white/[0.03] border-white/5 text-[#8e9ab2] hover:text-white hover:bg-white/[0.07] hover:border-white/15'
+              }`}
+            >
+              {isSelected && (
+                <div className="absolute top-0 right-0 w-14 h-14 bg-amber-400/15 rounded-bl-full pointer-events-none blur-sm" />
+              )}
 
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xl">{cat.icon}</span>
-                  <span
-                    className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                      isSelected
-                        ? 'bg-amber-400 text-black shadow-sm'
-                        : 'bg-[#18233b] text-[#8ea0be] border border-[#2d3d5f]'
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </div>
-                <span className="text-xs font-black truncate w-full tracking-tight">
-                  {cat.name}
+              <div className="flex items-center justify-between w-full">
+                <ChallengeIcon category={cat.id} size="sm" />
+                <span
+                  className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                    isSelected
+                      ? 'bg-amber-400 text-black shadow-sm'
+                      : 'bg-white/10 text-slate-300'
+                  }`}
+                >
+                  {count}
                 </span>
-              </button>
-            );
-          })}
-        </div>
+              </div>
+              <span className="text-xs font-black truncate w-full tracking-tight">
+                {cat.name}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Sleek Category Spotlight & Sub-Category Pills Bar */}
+      {/* Category Spotlight & Sub-Category Capsule Pills Bar */}
       {currentCategoryConfig && (
-        <div className="p-4 rounded-3xl bg-gradient-to-br from-[#131b2e] via-[#101728] to-[#0a101f] border border-[#293856] shadow-xl space-y-3 relative overflow-hidden">
-          {/* Subtle background ambient blur */}
-          <div className="absolute -top-10 -right-10 w-28 h-28 bg-gradient-to-br from-amber-500/10 to-purple-500/10 rounded-full blur-xl pointer-events-none" />
-
+        <div className="p-4 rounded-[26px] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-white/[0.015] backdrop-blur-2xl border border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.35)] space-y-3 relative overflow-hidden">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#1c2842] border border-[#344870] flex items-center justify-center text-xl shadow-inner flex-shrink-0">
-                {currentCategoryConfig.icon}
-              </div>
+              <ChallengeIcon category={currentCategoryConfig.id} size="md" />
               <div>
                 <h3 className="font-display font-black text-white text-sm sm:text-base flex items-center gap-1.5">
                   <span>{currentCategoryConfig.name}</span>
                 </h3>
-                <p className="text-[11px] text-[#94a3b8] leading-tight">
+                <p className="text-[11px] text-[#94a3b8] leading-tight font-normal">
                   {currentCategoryConfig.desc}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Sub-Category Interactive Filter Pills */}
+          {/* Sub-Category Interactive Filter Capsules */}
           <div className="flex items-center gap-1.5 overflow-x-auto pt-1 no-scrollbar border-t border-white/5">
             {currentCategoryConfig.subCategories.map((sub) => {
               const isSubActive =
@@ -163,11 +164,11 @@ export function ChallengesScreen({
                 <button
                   key={sub}
                   type="button"
-                  onClick={() => setSelectedSubCat(sub.startsWith('All ') ? 'All' : sub)}
-                  className={`whitespace-nowrap px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer active:scale-95 ${
+                  onClick={() => handleSelectSubCategory(sub)}
+                  className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer active:scale-95 ${
                     isSubActive
                       ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-black font-black border-amber-300 shadow-md shadow-amber-500/20'
-                      : 'bg-[#162035]/80 text-[#9ca7bd] border-[#293959] hover:text-white hover:bg-[#1f2d4a]'
+                      : 'bg-white/[0.05] text-[#9ca7bd] border-white/10 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {sub}
@@ -178,22 +179,25 @@ export function ChallengesScreen({
         </div>
       )}
 
-      {/* Sleek Search Input */}
+      {/* Apple-style Frosted Glass Search Input */}
       <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={`Search inside ${selectedCategory}...`}
-          className="w-full bg-[#0d1424] border border-[#24314c] focus:border-amber-400/80 rounded-2xl pl-10 pr-8 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition shadow-inner"
+          placeholder={`Search in ${selectedCategory}...`}
+          className="w-full bg-white/[0.04] focus:bg-white/[0.08] border border-white/10 focus:border-white/20 rounded-[22px] pl-11 pr-9 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 outline-none transition-all shadow-inner backdrop-blur-xl"
         />
         {search && (
           <button
-            onClick={() => setSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white cursor-pointer"
+            onClick={() => {
+              haptics.selection();
+              setSearch('');
+            }}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-white/10 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer"
           >
-            ✕
+            <X className="w-3 h-3" />
           </button>
         )}
       </div>
@@ -201,7 +205,7 @@ export function ChallengesScreen({
       {/* Filter Stats Bar */}
       <div className="flex items-center justify-between text-xs text-[#94a3b8] px-1">
         <span className="font-semibold">
-          {filteredChallenges.length} {filteredChallenges.length === 1 ? 'challenge' : 'challenges'} in{' '}
+          {filteredChallenges.length} {filteredChallenges.length === 1 ? 'game' : 'games'} in{' '}
           <strong className="text-white">{selectedCategory}</strong>
           {selectedSubCat !== 'All' && !selectedSubCat.startsWith('All ') && (
             <span> • <span className="text-amber-400">{selectedSubCat}</span></span>
@@ -211,10 +215,13 @@ export function ChallengesScreen({
         {selectedSubCat !== 'All' && !selectedSubCat.startsWith('All ') && (
           <button
             type="button"
-            onClick={() => setSelectedSubCat('All')}
+            onClick={() => {
+              haptics.selection();
+              setSelectedSubCat('All');
+            }}
             className="text-[11px] text-amber-400 hover:text-amber-300 font-bold cursor-pointer"
           >
-            Clear sub-filter
+            Reset filter
           </button>
         )}
       </div>
@@ -231,14 +238,15 @@ export function ChallengesScreen({
             />
           ))
         ) : (
-          <div className="bg-[#0f1627]/80 border border-[#24314c] rounded-3xl p-8 text-center space-y-2.5 shadow-xl">
+          <div className="bg-white/[0.03] border border-white/10 rounded-[28px] p-8 text-center space-y-2.5 shadow-xl">
             <span className="text-3xl">🔍</span>
             <h4 className="font-bold text-white text-sm">No challenges found</h4>
             <p className="text-xs text-[#94a3b8]">
-              No mini-challenges match your sub-category filter or search query.
+              No micro-games match your sub-category filter or search query.
             </p>
             <button
               onClick={() => {
+                haptics.selection();
                 setSelectedSubCat('All');
                 setSearch('');
               }}
