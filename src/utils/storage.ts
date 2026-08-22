@@ -2,7 +2,28 @@ import { GameState, AppNotification } from '../types';
 
 const STORAGE_KEY = 'challenge_me_state_v2';
 
-export const AVATARS = ['🧑🏾‍🚀', '⚡', '🧠', '🦁', '🦊', '🚀', '🎯', '🔥', '💎', '👾', '🌟', '🦄'];
+export const AVATARS = [
+  '🧑🏾‍🚀', // 1. Astronaut
+  '🥷',   // 2. Ninja
+  '🧙‍♂️',  // 3. Wizard
+  '🦸',   // 4. Superhero
+  '🤖',   // 5. Cyborg Robot
+  '👩‍💻',  // 6. Cyber Dev
+  '👩‍🔬',  // 7. Quantum Scientist
+  '🔥',   // 8. Blaze Flame
+  '⚡',   // 9. Thunder Lightning
+  '🧠',   // 10. Cyber Brain
+  '🐉',   // 11. Mythic Dragon
+  '🦅',   // 12. Sky Phoenix
+  '🐯',   // 13. Shadow Tiger
+  '🦊',   // 14. Swift Fox
+  '🦁',   // 15. Golden Lion
+  '👾',   // 16. Pixel Alien
+  '🦄',   // 17. Star Unicorn
+  '🌟',   // 18. Radiant Star
+  '🎯',   // 19. Bullseye Sniper
+  '🏆',   // 20. Grand Champion
+];
 
 export const INITIAL_NOTIFICATIONS: AppNotification[] = [
   {
@@ -24,6 +45,16 @@ export const INITIAL_NOTIFICATIONS: AppNotification[] = [
     type: 'streak',
   },
   {
+    id: 'notif_friend_req_1',
+    title: 'Friend Request: Charlotte Harper 👥',
+    desc: '@charlotte_speed sent you a friend request. Tap to accept or view profile!',
+    time: '10m ago',
+    icon: '👥',
+    read: false,
+    type: 'friend_request',
+    friendId: 'user_7',
+  },
+  {
     id: 'notif_difficulty',
     title: 'New: Difficulty Tiers & Penalties ⚡',
     desc: 'Play in Easy, Medium, or Hard modes. Beware: wrong answers deduct points from your dashboard!',
@@ -31,6 +62,15 @@ export const INITIAL_NOTIFICATIONS: AppNotification[] = [
     icon: '⚡',
     read: false,
     type: 'challenge',
+  },
+  {
+    id: 'notif_friend_active_init',
+    title: 'Friend Active: Emma Ema is online 🟢',
+    desc: '@emma_ema is now active and challenging players in the Science & Cosmos arena!',
+    time: '5m ago',
+    icon: '👥',
+    read: false,
+    type: 'friend_active',
   },
 ];
 
@@ -45,8 +85,18 @@ export const DEFAULT_STATE: GameState = {
   detailedHistory: [],
   unlockedAchievements: [],
   playerName: 'Challenger',
+  username: 'challenger_1',
+  hasChangedUsername: false,
+  usernameChangesCount: 0,
   avatar: '🧑🏾‍🚀',
+  profileBanner: 'from-indigo-900/60 via-purple-950/40 to-[#070b16]',
   soundEnabled: true,
+  hapticsEnabled: true,
+  friendNotificationsEnabled: true,
+  friendIds: ['user_1', 'user_2', 'user_4'],
+  friendRequestsIncoming: ['user_7', 'user_10'],
+  friendRequestsOutgoing: [],
+  customChallenges: [],
   notifications: INITIAL_NOTIFICATIONS,
 };
 

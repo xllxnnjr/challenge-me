@@ -89,7 +89,41 @@ class SoundManager {
     } catch {}
   }
 
+  playTap(enabled = true) {
+    this.playClick(enabled);
+  }
+
+  playBonus(enabled = true) {
+    if (!enabled) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+    try {
+      const now = ctx.currentTime;
+      const notes = [587.33, 880.0, 1174.66]; // D5, A5, D6
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + i * 0.06);
+
+        gain.gain.setValueAtTime(0.16, now + i * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.2);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.start(now + i * 0.06);
+        osc.stop(now + i * 0.06 + 0.2);
+      });
+    } catch {}
+  }
+
+  playCelebration(enabled = true) {
+    this.playSuccess(enabled);
+  }
+
   playPop(enabled = true) {
+
     if (!enabled) return;
     const ctx = this.getContext();
     if (!ctx) return;

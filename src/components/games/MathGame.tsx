@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Difficulty } from '../../types';
 import { sound } from '../../utils/audio';
 
@@ -28,6 +28,7 @@ export function MathGame({
   const totalTime = Math.max(8, baseTime - levelTimeDeduction);
 
   const [timeLeft, setTimeLeft] = useState(totalTime);
+  const hasTimedOutRef = useRef(false);
 
   useEffect(() => {
     let ans = 0;
@@ -79,18 +80,22 @@ export function MathGame({
 
     setProblem({ eq, ans });
     setTimeLeft(totalTime);
+    hasTimedOutRef.current = false;
   }, [difficulty, playerLevel, totalTime]);
 
   useEffect(() => {
     if (timeLeft <= 0) {
-      sound.playError(soundEnabled);
-      const penaltyAmount = difficulty === 'Easy' ? 5 : difficulty === 'Medium' ? 8 : 12;
-      onPenalty(penaltyAmount, 'Time ran out on Math Speed!');
-      onErrorToast(`Time ran out! -${penaltyAmount} pts penalty.`);
+      if (!hasTimedOutRef.current) {
+        hasTimedOutRef.current = true;
+        sound.playError(soundEnabled);
+        const penaltyAmount = difficulty === 'Easy' ? 5 : difficulty === 'Medium' ? 8 : 12;
+        onPenalty(penaltyAmount, 'Time ran out on Math Speed!');
+        onErrorToast(`Time ran out! -${penaltyAmount} pts penalty.`);
+      }
       return;
     }
     const timer = setInterval(() => {
-      setTimeLeft(prev => prev - 1);
+      setTimeLeft((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
   }, [timeLeft, onErrorToast, onPenalty, soundEnabled, difficulty]);

@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, Trash2, ArrowRight, Flame, Trophy, Sparkles, AlertTriangle } from 'lucide-react';
+import { Bell, CheckCheck, Trash2, ArrowRight, Flame, Trophy, Sparkles, AlertTriangle, Users, Waves } from 'lucide-react';
 import { AppNotification } from '../../types';
 import { haptics } from '../../utils/haptics';
 
@@ -27,10 +27,14 @@ export function NotificationsScreen({
         return <Trophy className="w-4 h-4 text-amber-400" />;
       case 'reward':
         return <Sparkles className="w-4 h-4 text-pink-400" />;
+      case 'friend_active':
+        return <Users className="w-4 h-4 text-emerald-400" />;
+      case 'friend_wave':
+        return <Waves className="w-4 h-4 text-cyan-400" />;
       case 'system':
         return <AlertTriangle className="w-4 h-4 text-rose-400" />;
       default:
-        return <Bell className="w-4 h-4 text-purple-400" />;
+        return <Bell className="w-4 h-4 text-indigo-400" />;
     }
   };
 

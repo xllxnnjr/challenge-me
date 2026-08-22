@@ -1,0 +1,18 @@
+{
+  "entities": {
+    "UserProfile": {
+      "collection": "users",
+      "fields": {
+        "email": { "type": "string", "required": false },
+        "displayName": { "type": "string", "required": false },
+        "photoURL": { "type": "string", "required": false },
+        "updatedAt": { "type": "number", "required": true },
+        "createdAt": { "type": "number", "required": false },
+        "lastSyncTimestamp": { "type": "number", "required": false },
+        "devices": { "type": "array", "required": false },
+        "gameState": { "type": "map", "required": true }
+      }
+    }
+  },
+  "roles": {}
+}

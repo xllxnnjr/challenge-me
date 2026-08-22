@@ -23,6 +23,17 @@ import { RhythmGame } from './games/RhythmGame';
 import { TriviaGame } from './games/TriviaGame';
 import { TruthGame } from './games/TruthGame';
 import { CompareGame } from './games/CompareGame';
+import { VoiceRiddleGame } from './games/VoiceRiddleGame';
+import { EduQuizGame } from './games/EduQuizGame';
+import { EmojiRiddleGame } from './games/EmojiRiddleGame';
+import { SimonGame } from './games/SimonGame';
+import { CodeBreakerGame } from './games/CodeBreakerGame';
+import { DetectiveRiddleGame } from './games/DetectiveRiddleGame';
+import { CinemaQuizGame } from './games/CinemaQuizGame';
+import { Math24Game } from './games/Math24Game';
+import { FlagQuizGame } from './games/FlagQuizGame';
+import { PitchMatchGame } from './games/PitchMatchGame';
+import { AnagramBlitzGame } from './games/AnagramBlitzGame';
 
 interface Props {
   challenge: Challenge | null;
@@ -51,6 +62,7 @@ export function GameModal({
 }: Props) {
   const [result, setResult] = useState<{ score: number; message: string } | null>(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [showExitWarning, setShowExitWarning] = useState(false);
 
   if (!challenge) return null;
 
@@ -61,13 +73,9 @@ export function GameModal({
   };
 
   const handleSuccess = (score: number, message: string) => {
-    // Level scaling reward bonus
-    const levelBonus = Math.round(score * (0.05 * (playerLevel - 1)));
-    const totalScore = score + levelBonus;
-
     setResult({
-      score: totalScore,
-      message: levelBonus > 0 ? `${message} (+${levelBonus} Lvl ${playerLevel} scaling bonus!)` : message,
+      score,
+      message,
     });
     sound.playSuccess(soundEnabled);
     haptics.celebration();
@@ -82,7 +90,7 @@ export function GameModal({
       });
     } catch {}
 
-    onComplete(challenge, totalScore);
+    onComplete(challenge, score);
   };
 
   const handlePenaltyWrapped = (amount?: number, reason?: string) => {
@@ -98,11 +106,29 @@ export function GameModal({
   const handleNextChallenge = () => {
     haptics.medium();
     setResult(null);
+    setShowExitWarning(false);
     onNextRandom();
   };
 
   const handleClose = () => {
+    // If the challenge is active and unfinished, prevent exit unless forfeited
+    if (!result) {
+      sound.playError(soundEnabled);
+      haptics.error();
+      setShowExitWarning(true);
+      return;
+    }
     haptics.light();
+    setResult(null);
+    setShowExitWarning(false);
+    onClose();
+  };
+
+  const handleForfeitAndLeave = () => {
+    haptics.error();
+    onPenalty(10, `Abandoned "${challenge.title}" in progress`);
+    onToast('Challenge forfeited (-10 pts penalty) ⚠️');
+    setShowExitWarning(false);
     setResult(null);
     onClose();
   };
@@ -123,6 +149,41 @@ export function GameModal({
       >
         {/* Apple Modal Top Grabber Pill */}
         <div className="w-10 h-1.5 rounded-full bg-white/20 mx-auto mb-3 sm:hidden" />
+
+        {/* Exit Warning Dialog (Game Locked until finished) */}
+        {showExitWarning && (
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md z-30 rounded-[32px] p-6 flex flex-col items-center justify-center text-center animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-300 flex items-center justify-center text-3xl mb-3 shadow-lg">
+              🔒
+            </div>
+            <h3 className="text-lg font-display font-black text-white mb-1.5">
+              Challenge In Progress!
+            </h3>
+            <p className="text-xs text-slate-300 max-w-xs mb-5 leading-relaxed font-medium">
+              You cannot leave before finishing the challenge. Complete the game now to earn{' '}
+              <strong className="text-amber-400">+{currentRewardPts} Points & XP</strong>!
+            </p>
+            <div className="w-full space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.success();
+                  setShowExitWarning(false);
+                }}
+                className="w-full py-3.5 rounded-2xl bg-amber-400 hover:bg-amber-300 font-black text-black text-xs uppercase tracking-wider shadow-lg transition active:scale-95 cursor-pointer"
+              >
+                Keep Playing & Finish
+              </button>
+              <button
+                type="button"
+                onClick={handleForfeitAndLeave}
+                className="w-full py-2.5 rounded-2xl bg-rose-950/40 hover:bg-rose-950/70 border border-rose-800/40 text-rose-400 hover:text-rose-300 font-bold text-xs transition active:scale-95 cursor-pointer"
+              >
+                Forfeit Challenge (-10 Pts Penalty)
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10 mb-3.5">
@@ -147,11 +208,6 @@ export function GameModal({
                 )}
                 <span>•</span>
                 <strong className="text-amber-400">+{currentRewardPts} pts</strong>
-                <span>•</span>
-                <span className="text-amber-300 font-bold flex items-center gap-0.5 text-[11px]">
-                  <Zap className="w-3 h-3 text-amber-400" />
-                  Lvl {playerLevel}
-                </span>
               </span>
             </div>
           </div>
@@ -163,35 +219,23 @@ export function GameModal({
           </button>
         </div>
 
-        {/* Difficulty Pill Switcher in Modal */}
+        {/* Difficulty Badge (Locked during active challenge) */}
         {!result && (
           <div className="flex items-center justify-between bg-black/40 border border-white/10 rounded-full px-3.5 py-1.5 mb-3.5 shadow-inner">
-            <span className="text-[11px] font-bold text-slate-400">Difficulty:</span>
-            <div className="flex items-center gap-1">
-              {(['Easy', 'Medium', 'Hard'] as Difficulty[]).map((d) => {
-                const isActive = difficulty === d;
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => {
-                      haptics.selection();
-                      onChangeDifficulty(d);
-                    }}
-                    className={`px-3 py-1 rounded-full text-[10px] font-black uppercase transition-all cursor-pointer ${
-                      isActive
-                        ? d === 'Easy'
-                          ? 'bg-emerald-500 text-white shadow-sm'
-                          : d === 'Medium'
-                          ? 'bg-amber-500 text-white shadow-sm'
-                          : 'bg-rose-500 text-white shadow-sm'
-                        : 'bg-white/5 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {d}
-                  </button>
-                );
-              })}
+            <span className="text-[11px] font-bold text-slate-400">Active Challenge Tier:</span>
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm ${
+                  difficulty === 'Easy'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                    : difficulty === 'Hard'
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                }`}
+              >
+                <span>{difficulty}</span>
+                <span className="opacity-80">({difficulty === 'Easy' ? '0.75x' : difficulty === 'Hard' ? '1.5x' : '1.0x'} XP)</span>
+              </span>
             </div>
           </div>
         )}
@@ -297,6 +341,42 @@ export function GameModal({
                 soundEnabled={soundEnabled}
               />
             )}
+            {challenge.type === 'voice_riddle' && (
+              <VoiceRiddleGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'edu_quiz' && (
+              <EduQuizGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'emoji_riddle' && (
+              <EmojiRiddleGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'simon' && (
+              <SimonGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
             {challenge.type === 'pattern' && (
               <PatternGame
                 difficulty={difficulty}
@@ -375,6 +455,8 @@ export function GameModal({
             {challenge.type === 'trivia' && (
               <TriviaGame
                 difficulty={difficulty}
+                challengeId={challenge.id}
+                challengeTitle={challenge.title}
                 onSuccess={handleSuccess}
                 onErrorToast={handleErrorToastWrapped}
                 onPenalty={handlePenaltyWrapped}
@@ -399,6 +481,70 @@ export function GameModal({
                 soundEnabled={soundEnabled}
               />
             )}
+            {challenge.type === 'cinema_quiz' && (
+              <CinemaQuizGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'detective_riddle' && (
+              <DetectiveRiddleGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'code_breaker' && (
+              <CodeBreakerGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'math24' && (
+              <Math24Game
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'flag_quiz' && (
+              <FlagQuizGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'pitch_match' && (
+              <PitchMatchGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+            {challenge.type === 'anagram_blitz' && (
+              <AnagramBlitzGame
+                difficulty={difficulty}
+                onSuccess={handleSuccess}
+                onErrorToast={handleErrorToastWrapped}
+                onPenalty={handlePenaltyWrapped}
+                soundEnabled={soundEnabled}
+              />
+            )}
+
           </div>
         )}
       </div>

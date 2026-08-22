@@ -4,8 +4,27 @@
  */
 
 export class HapticsManager {
+  private enabled = true;
+
+  setEnabled(val: boolean) {
+    this.enabled = val;
+  }
+
+  getEnabled(): boolean {
+    return this.enabled;
+  }
+
+  isEnabled(): boolean {
+    return this.enabled;
+  }
+
+  toggle(): boolean {
+    this.enabled = !this.enabled;
+    return this.enabled;
+  }
+
   private isSupported(): boolean {
-    return typeof window !== 'undefined' && 'navigator' in window && typeof navigator.vibrate === 'function';
+    return this.enabled && typeof window !== 'undefined' && 'navigator' in window && typeof navigator.vibrate === 'function';
   }
 
   /**
@@ -54,7 +73,6 @@ export class HapticsManager {
   success() {
     if (!this.isSupported()) return;
     try {
-      // Crisp double haptic pulse
       navigator.vibrate([25, 45, 55]);
     } catch {}
   }
@@ -65,7 +83,6 @@ export class HapticsManager {
   error() {
     if (!this.isSupported()) return;
     try {
-      // Rapid buzz sequence
       navigator.vibrate([50, 40, 50, 40, 70]);
     } catch {}
   }
@@ -77,6 +94,37 @@ export class HapticsManager {
     if (!this.isSupported()) return;
     try {
       navigator.vibrate([40, 40, 40, 40, 80, 50, 120]);
+    } catch {}
+  }
+
+  /**
+   * Distinct tactile rhythm when a friend becomes active in the app
+   */
+  friendActive() {
+    if (!this.isSupported()) return;
+    try {
+      // Gentle double nudge pulse
+      navigator.vibrate([35, 60, 35]);
+    } catch {}
+  }
+
+  /**
+   * Tactile ripple when receiving or sending a cheer / wave to a friend
+   */
+  friendWave() {
+    if (!this.isSupported()) return;
+    try {
+      navigator.vibrate([20, 30, 20, 30, 40]);
+    } catch {}
+  }
+
+  /**
+   * High-intensity duel launch buzz
+   */
+  duelChallenge() {
+    if (!this.isSupported()) return;
+    try {
+      navigator.vibrate([50, 30, 70, 40, 90]);
     } catch {}
   }
 }
